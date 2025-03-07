@@ -11,9 +11,9 @@ export default function TemplateGenerator() {
   const [template, setTemplate] = useState("")
   const [variables, setVariables] = useState<Array<{ name: string; values: string }>>([])
   const [output, setOutput] = useState<string[]>([])
-  const [valueDelimiter, setValueDelimiter] = useState(",")
+  const [valueDelimiter, setValueDelimiter] = useState("\\n")
 
-  // Extract variables from template when it changes
+  // Extrai variaveis do texto template ao mudar caso tenha alguma
   useEffect(() => {
     const regex = /\{\{([^}]+)\}\}/g
     const matches = Array.from(template.matchAll(regex))
@@ -34,13 +34,13 @@ export default function TemplateGenerator() {
     })
   }, [template])
 
-  // Generate output based on template and variables
+  // Gera o texto baseado no template e nas variaveis
   const generateOutput = () => {
     if (!template) {
       toast({
         title: "Texto vazio",
         description: "Por favor digite um texto com o formato {{variavel}}.",
-        variant: "destructive",
+        variant: "danger",
       })
       return
     }
@@ -49,37 +49,39 @@ export default function TemplateGenerator() {
       toast({
         title: "Nenhuma variavel encontrada",
         description: "Por favor insira ao menos 1 variavel no seu texto usando o formato {{variavel}}",
-        variant: "destructive",
+        variant: "warning",
       })
       return
     }
 
-    // Check if any variable has no values
+    // Checka se alguma variavel nao tem nenhum valor inserido
     const emptyVars = variables.filter((v) => !v.values.trim())
     if (emptyVars.length > 0) {
       toast({
         title: "Variaveis sem valores",
-        description: `Please provide values for: ${emptyVars.map((v) => v.name).join(", ")}`,
-        variant: "destructive",
+        description: `Por favor preencha os campos das variaveis: ${emptyVars.map((v) => v.name).join(", ")}`,
+        variant: "warning",
       })
       return
     }
 
-    // Parse values for each variable
+    const delimiter = valueDelimiter == "\\n" ? "\n" : valueDelimiter;
+    
+    // Separa os valores de cada variavel
     const parsedValues = variables.map((v) => ({
       name: v.name,
-      valueList: v.values.split(valueDelimiter).map((val) => val.trim()),
+      valueList: v.values.split(delimiter).map((val) => val.trim()),
     }))
 
-    // Check if all variables have the same number of values
+    // Checka se todas as variaveis tem a mesma quantidade de items
     const valueCounts = parsedValues.map((v) => v.valueList.length)
     const allSameCount = valueCounts.every((count) => count === valueCounts[0])
 
     if (!allSameCount) {
       toast({
-        title: "Inconsistent value counts",
-        description: "All variables should have the same number of values.",
-        variant: "destructive",
+        title: "Inconsistencia na quantidade de valores",
+        description: "Todas as variaveis devem conter o mesmo tamanho.",
+        variant: "danger",
         action: (
           <ToastAction altText="Continuar mesmo assim" onClick={() => generateWithParsedValues(parsedValues)}>
             Continuar mesmo assim
@@ -93,19 +95,19 @@ export default function TemplateGenerator() {
   }
 
   const generateWithParsedValues = (parsedValues: Array<{ name: string; valueList: string[] }>) => {
-    // Find the maximum number of values across all variables
+    // Acha o maior numero de variaveis dentre a lista de variaveis
     const maxCount = Math.max(...parsedValues.map((v) => v.valueList.length))
 
-    // Generate output for each set of values
+    // Gera o texto de saida para cada quantidade de variavel
     const results: string[] = []
 
     for (let i = 0; i < maxCount; i++) {
       let result = template
 
-      // Replace each variable with its corresponding value
+      // Substitui cada valor no texto por sua variavel correspondente
       parsedValues.forEach((variable) => {
         const value =
-          i < variable.valueList.length ? variable.valueList[i] : variable.valueList[variable.valueList.length - 1]
+          i < variable.valueList.length ? variable.valueList[i] : " "
         const regex = new RegExp(`\\{\\{${variable.name}\\}\\}`, "g")
         result = result.replace(regex, value)
       })
@@ -119,8 +121,9 @@ export default function TemplateGenerator() {
   const copyToClipboard = () => {
     navigator.clipboard.writeText(output.join("\n"))
     toast({
-      title: "Copied to clipboard",
-      description: "The generated output has been copied to your clipboard.",
+      title: "Texto copiado",
+      description: "O texto gerado foi copiado para a area de transferencia",
+      variant: "sucess"
     })
   }
 
@@ -130,10 +133,10 @@ export default function TemplateGenerator() {
     setVariables(updatedVariables)
   }
 
-  const clearAll = () => {
-    setTemplate("")
-    setVariables([])
-    setOutput([])
+  const clearVariablesList = (index: number) => {
+    const updatedVariables = [...variables]
+    updatedVariables[index].values = ""
+    setVariables(updatedVariables)
   }
 
   const addCustomVariable = () => {
@@ -186,36 +189,42 @@ export default function TemplateGenerator() {
           <div className="space-y-4">
             {variables.map((varItem, index) => (
               <div key={index} className="space-y-1">
-                <label htmlFor={`var-${varItem.name}`} className="block text-sm font-medium text-gray-700">
-                  Variavel: {varItem.name}
-                </label>
+                <div className="flex items-end justify-between h-full mb-2">
+                  <label htmlFor={`var-${varItem.name}`} className="block text-sm font-bold text-gray-700">
+                    Variavel: <span className="font-normal">{varItem.name}</span>
+                  </label>
+                  <div className="flex justify-end -mt-4 space-x-2">
+                    <Button onClick={() => clearVariablesList(index)}>
+                      <RefreshCw className="w-4 h-4 mr-1" /> Limpar
+                    </Button>
+                  </div>
+                </div>
                 <Textarea
                   id={`var-${varItem.name}`}
                   placeholder={`Variavel1${valueDelimiter} Variavel2${valueDelimiter} Variavel3`}
                   value={varItem.values}
                   onChange={(e) => handleVariableValueChange(index, e.target.value)}
-                  className="min-h-[80px]"
+                  className="min-h-[80px] mb-8"
                 />
               </div>
             ))}
           </div>
 
-          <div className="flex mt-6 space-x-2">
-            <Button onClick={generateOutput}>Gerar Template</Button>
-            <Button onClick={clearAll}>
-              <RefreshCw className="w-4 h-4 mr-1" /> Limpar
-            </Button>
-          </div>
         </Card>
+        
       )}
+      
+      <div className="flex justify-start mb-4 space-x-2">
+        <Button onClick={generateOutput}>Gerar Template</Button>
+      </div>
 
       {output.length > 0 && (
         <Card>
           <div className="pt-6">
             <div className="flex items-center justify-between mb-2">
-              <h2 className="text-lg font-medium">Generated Output ({output.length} items)</h2>
+              <h2 className="text-lg font-medium">Texto Gerado ({output.length} linhas)</h2>
               <Button onClick={copyToClipboard}>
-                <ClipboardCopy className="w-4 h-4 mr-1" /> Copy All
+                <ClipboardCopy className="w-4 h-4 mr-1" /> Copiar
               </Button>
             </div>
             <div className="p-4 bg-gray-100 rounded-md">
