@@ -9,6 +9,12 @@ function App() {
         <TemplateGenerator />
         <Toaster />
       </div>
+      <div className="absolute left-0 hidden ml-4 opacity-50 pointer-events-none select-none top-2/4 -translate-y-2/4 blur-xs 2xl:block">
+        <img src="./logo.png" alt="logo" className="" />
+      </div>
+      <div className="absolute right-0 hidden mr-4 opacity-50 pointer-events-none select-none top-2/4 -translate-y-2/4 blur-xs 2xl:block">
+        <img src="./logo.png" alt="logo" className="" />
+      </div>
     </main>
   )
 }
